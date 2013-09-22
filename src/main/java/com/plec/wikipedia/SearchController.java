@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 
 import com.plec.wikipedia.bean.SearchResult;
+import com.plec.wikipedia.bean.SearchResults;
 import com.plec.wikipedia.service.SearchService;
 
 /**
@@ -61,8 +62,10 @@ public class SearchController {
 	@RequestMapping(value = "/search", method = RequestMethod.POST)
 	public String search(@RequestParam("query") String query, Locale locale, Model model) {
 		logger.info(" recherche de " + query);
-		List<SearchResult> resultats = searchService.search(query);
-		model.addAttribute("searchResult", resultats);
+		SearchResults searchResults = searchService.search(query);
+		model.addAttribute("searchResult", searchResults.getResultList());
+		model.addAttribute("requestTime", searchResults.getRequestTime());
+		model.addAttribute("totalResults", searchResults.getTotalResults());
 		return "results";
 	}
 	public void setSearchService(SearchService searchService) {
