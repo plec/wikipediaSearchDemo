@@ -6,6 +6,8 @@
 	<!-- Root Context: defines shared resources visible to all other web components -->
 	<bean id="searchService" class="com.plec.wikipedia.service.SearchService">
 		<property name="searchSolRDao" ref="searchSolRDao" />
+		<property name="searchESDao" ref="searchESDao" />
 	</bean>
 	<bean id="searchSolRDao" class="com.plec.wikipedia.dao.SearchSolRDao" />
+	<bean id="searchESDao" class="com.plec.wikipedia.dao.SearchESDao" />
 </beans>

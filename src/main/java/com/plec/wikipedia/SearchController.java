@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 
+import com.plec.wikipedia.bean.Pages;
 import com.plec.wikipedia.bean.SearchResult;
 import com.plec.wikipedia.bean.SearchResults;
 import com.plec.wikipedia.service.SearchService;
@@ -26,6 +27,7 @@ public class SearchController {
 			.getLogger(SearchController.class);
 	@Autowired
 	private SearchService searchService;
+	private static final int PAGE_SIZE = 20;
 
 	/**
 	 * Simply selects the home view to render by returning its name.
@@ -33,27 +35,7 @@ public class SearchController {
 	@RequestMapping(value = "/initSearch", method = RequestMethod.GET)
 	public String result(Locale locale, Model model) {
 		logger.info(" recherche ");
-
-//		// get the query string
-//		String query = "rome";
-//		// List<SearchResult> resultats = solrDao.search(query);
-//		List<SearchResult> resultats = new ArrayList<SearchResult>();
-//		SearchResult r = new SearchResult();
-//		r.setTitle("title1");
-//		List<String> links = new ArrayList<String>();
-//		links.add("http://fr.wikipedia.org/wiki?curid=3");
-//		r.setLinks(links);
-//		resultats.add(r);
-//
-//		r = new SearchResult();
-//		r.setTitle("title2");
-//		List<String> link2s = new ArrayList<String>();
-//		link2s.add("http://fr.wikipedia.org/wiki?curid=7");
-//		r.setLinks(link2s);
-//		resultats.add(r);
-//
 		model.addAttribute("searchResult", new ArrayList<SearchResult>());
-
 		return "results";
 	}
 	/**
@@ -62,10 +44,34 @@ public class SearchController {
 	@RequestMapping(value = "/search", method = RequestMethod.POST)
 	public String search(@RequestParam("query") String query, Locale locale, Model model) {
 		logger.info(" recherche de " + query);
-		SearchResults searchResults = searchService.search(query);
+		if (query.length() == 0) {
+			query= "*";
+		}
+		Pages pages = new Pages();
+		SearchResults searchResults = searchService.search(query, PAGE_SIZE);
+		pages.setTotalPages(searchResults.getTotalResults());
+		List<String> pagesUrl = new ArrayList<String>();
+		long totalPage = (searchResults.getTotalResults() / PAGE_SIZE) +1;
+		if (totalPage > 6) {
+			pagesUrl.add("page - 1");
+			pagesUrl.add("page - 2");
+			pagesUrl.add("page - 3");
+			pagesUrl.add("...");
+			pagesUrl.add("page - "+ (totalPage-2));
+			pagesUrl.add("page - "+ (totalPage-1));
+			pagesUrl.add("page - "+ totalPage);
+		} else {
+			for (long i =0; i< totalPage; i++) {
+				pagesUrl.add("page - " +i);
+			}
+		}
+		pages.setPage(pagesUrl);
+
 		model.addAttribute("searchResult", searchResults.getResultList());
 		model.addAttribute("requestTime", searchResults.getRequestTime());
 		model.addAttribute("totalResults", searchResults.getTotalResults());
+		model.addAttribute("searchQuery", query);
+		model.addAttribute("pages", pages);
 		return "results";
 	}
 	public void setSearchService(SearchService searchService) {
