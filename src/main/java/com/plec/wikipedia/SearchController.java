@@ -6,6 +6,7 @@ import java.util.Locale;
 
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -18,40 +19,92 @@ import com.plec.wikipedia.bean.SearchResults;
 import com.plec.wikipedia.service.SearchService;
 
 /**
- * Handles requests for the application home page.
+ * Handles requests for the application search page.
  */
 @Controller
 public class SearchController {
 
-	private static final Logger logger = Logger
+	private static final Logger LOGGER = Logger
 			.getLogger(SearchController.class);
 	@Autowired
 	private SearchService searchService;
-	private static final int PAGE_SIZE = 20;
+
+	private int pageSize = 50;
 
 	/**
-	 * Simply selects the home view to render by returning its name.
+	 * Page call with HTTP GET method : return the search page without results
 	 */
-	@RequestMapping(value = "/initSearch", method = RequestMethod.GET)
-	public String result(Locale locale, Model model) {
-		logger.info(" recherche ");
+	@RequestMapping(value = "/search", method = RequestMethod.GET)
+	public String initSearch(Locale locale, Model model) {
 		model.addAttribute("searchResult", new ArrayList<SearchResult>());
 		return "results";
 	}
 	/**
-	 * Simply selects the home view to render by returning its name.
+	 * Page call with HTTP POST method : return the search page with results
 	 */
 	@RequestMapping(value = "/search", method = RequestMethod.POST)
-	public String search(@RequestParam("query") String query, Locale locale, Model model) {
-		logger.info(" recherche de " + query);
+	public String search(@RequestParam("query") String query, @RequestParam("searchEngine") String searchEngine, Locale locale, Model model) {
+		if (LOGGER.isInfoEnabled()) {
+			LOGGER.info(" recherche de " + query);
+		}
 		if (query.length() == 0) {
 			query= "*";
 		}
 		Pages pages = new Pages();
-		SearchResults searchResults = searchService.search(query, PAGE_SIZE);
-		pages.setTotalPages(searchResults.getTotalResults());
+		try {
+			
+			SearchResults searchResults = searchService.search(query, searchEngine);
+			if (searchResults.getTotalResults() < 1) {
+				generateDummyResults(query, model, "<i>Aucun résultat</i>", searchResults.getRequestTime(), searchEngine);
+			} else {
+				pages.setTotalPages(searchResults.getTotalResults());
+				pages.setPage(generatePagination(searchResults.getTotalResults()));
+				model.addAttribute("searchResult", searchResults.getResultList());
+				model.addAttribute("requestTime", searchResults.getRequestTime());
+				model.addAttribute("engine", searchEngine);
+				model.addAttribute("totalResults", searchResults.getTotalResults());
+				model.addAttribute("searchQuery", query);
+				model.addAttribute("pages", pages);
+			}
+		} catch (SearchException se) {
+			LOGGER.error(se.getMessage());
+			generateDummyResults(query, model, "<i>Une erreur s'est produite</i>", -1,searchEngine);
+		}
+		return "results";
+	}
+	/**
+	 * Generate dummy results in case of no result or if error occurs
+	 * @param query the query searched
+	 * @param model the MVC model to put data results
+	 * @param message the message to display
+	 * @param requestTime the request time if known
+	 */
+	private void generateDummyResults(String query, Model model, String message, long requestTime, String searchEngine) {
+		SearchResult sr = new SearchResult();
+		sr.setHighlight(new ArrayList<String>());
+		sr.getHighlight().add(" ");
+		sr.setLinks("#");
+		sr.setTitle(message);
+		List<SearchResult> dummyResults = new ArrayList<SearchResult>();
+		dummyResults.add(sr);
+		Pages pages = new Pages();
+		pages.setPage(new ArrayList<String>());
+		pages.getPage().add(" ");
+		model.addAttribute("searchResult", dummyResults);
+		model.addAttribute("requestTime", requestTime);
+		model.addAttribute("totalResults", 0);
+		model.addAttribute("engine", searchEngine);
+		model.addAttribute("searchQuery", query);
+		model.addAttribute("pages",pages);
+	}
+	/**
+	 * Generate the dummy pagination
+	 * @param totalResult total number of results 
+	 * @return a list of URLs to access to other pages
+	 */
+	private List<String> generatePagination(long totalResult) {
 		List<String> pagesUrl = new ArrayList<String>();
-		long totalPage = (searchResults.getTotalResults() / PAGE_SIZE) +1;
+		long totalPage = (totalResult / pageSize) +1;
 		if (totalPage > 6) {
 			pagesUrl.add("page - 1");
 			pagesUrl.add("page - 2");
@@ -65,17 +118,22 @@ public class SearchController {
 				pagesUrl.add("page - " +i);
 			}
 		}
-		pages.setPage(pagesUrl);
-
-		model.addAttribute("searchResult", searchResults.getResultList());
-		model.addAttribute("requestTime", searchResults.getRequestTime());
-		model.addAttribute("totalResults", searchResults.getTotalResults());
-		model.addAttribute("searchQuery", query);
-		model.addAttribute("pages", pages);
-		return "results";
+		return pagesUrl;
 	}
+	/**
+	 * Setter method for property bean searchService Spring IoC
+	 * @param searchService the bean searchService
+	 */
 	public void setSearchService(SearchService searchService) {
 		this.searchService = searchService;
+	}
+	/**
+	 * Setter method for property pageSize Spring IoC
+	 * 
+	 * @param pageSize the number of result per page
+	 */
+	public void setPageSize(int pageSize) {
+		this.pageSize = pageSize;
 	}
 
 }

@@ -4,10 +4,31 @@
 	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.0.xsd">
 
 	<!-- Root Context: defines shared resources visible to all other web components -->
+	<bean
+    class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer" >
+    <property name="systemPropertiesModeName" value="SYSTEM_PROPERTIES_MODE_OVERRIDE"/>
+    <property name="ignoreUnresolvablePlaceholders" value="true"/>
+    <property name="ignoreResourceNotFound" value="true"/>
+	<property name="locations">
+        <list>
+            <value>classpath:application.properties</value>
+            <value>${wikipediaSearchDemoConfigFile}</value>
+        </list>
+    </property>
+    </bean>
+	
 	<bean id="searchService" class="com.plec.wikipedia.service.SearchService">
 		<property name="searchSolRDao" ref="searchSolRDao" />
 		<property name="searchESDao" ref="searchESDao" />
 	</bean>
-	<bean id="searchSolRDao" class="com.plec.wikipedia.dao.SearchSolRDao" />
-	<bean id="searchESDao" class="com.plec.wikipedia.dao.SearchESDao" />
+	<bean id="searchSolRDao" class="com.plec.wikipedia.dao.SearchSolRDao" init-method="init" >
+		<property name="solrUrl" value="${solr.url}"/>
+		<property name="maxResults" value="${query.max.results}" />
+	</bean>
+	<bean id="searchESDao" class="com.plec.wikipedia.dao.SearchESDao" init-method="init" >
+		<property name="esHost" value="${es.host}" />
+		<property name="esPort" value="${es.port}" />
+		<property name="esIndexName" value="${es.index.name}" />
+		<property name="maxResults" value="${query.max.results}" />
+	</bean>
 </beans>
